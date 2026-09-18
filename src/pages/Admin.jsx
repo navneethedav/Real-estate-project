@@ -43,6 +43,19 @@ export default function Admin({ settings, onSettingsUpdated }) {
     fetchData();
   }, []);
 
+  // Synchronize form values whenever settings are loaded from the database
+  useEffect(() => {
+    if (settings) {
+      setSettingsForm({
+        whatsapp_number: settings.whatsapp_number || '',
+        phone: settings.phone || '',
+        email: settings.email || '',
+        address: settings.address || '',
+        business_hours: settings.business_hours || '',
+      });
+    }
+  }, [settings]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -233,7 +246,6 @@ export default function Admin({ settings, onSettingsUpdated }) {
           </button>
         </div>
 
-
         {/* TAB 1: PROPERTIES */}
         {activeTab === 'properties' && (
           <div>
@@ -305,7 +317,6 @@ export default function Admin({ settings, onSettingsUpdated }) {
           </div>
         )}
 
-
         {/* TAB 2: INQUIRIES */}
         {activeTab === 'inquiries' && (
           <div>
@@ -342,7 +353,6 @@ export default function Admin({ settings, onSettingsUpdated }) {
             )}
           </div>
         )}
-
 
         {/* TAB 3: SETTINGS */}
         {activeTab === 'settings' && (
