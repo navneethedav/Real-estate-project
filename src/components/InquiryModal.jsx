@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, Send, MessageSquare, Building2, MapPin, Tag } from 'lucide-react';
+import supabase from '../lib/supabase';
 import { openWhatsApp, buildPropertyInquiryMessage } from '../lib/whatsapp';
 
 export default function InquiryModal({ property, settings, isOpen, onClose }) {
@@ -19,19 +20,21 @@ export default function InquiryModal({ property, settings, isOpen, onClose }) {
     setSubmitting(true);
 
     try {
-      // 1. Save inquiry into backend database
-      await fetch('/api/inquiries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      // 1. Save inquiry directly to Supabase database
+      const { error } = await supabase.from('inquiries').insert([
+        {
           property_id: property.id,
           property_title: property.title,
           client_name: name,
           client_phone: phone,
           client_email: email,
           message: message,
-        }),
-      });
+        },
+      ]);
+
+      if (error) {
+        console.error('Supabase inquiry insert error:', error);
+      }
 
       setSubmitted(true);
 

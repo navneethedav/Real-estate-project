@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, Search, MapPin, Shield, Star, CheckCircle2, ArrowRight, MessageSquare, PhoneCall, Award, Users } from 'lucide-react';
+import supabase from '../lib/supabase';
 import PropertyCard from '../components/PropertyCard';
 import { openWhatsApp } from '../lib/whatsapp';
 
@@ -12,6 +13,7 @@ export default function Home({ settings }) {
   const [selectedListingType, setSelectedListingType] = useState('All');
 
   const waPhone = settings?.whatsapp_number || '918155050343';
+  const displayPhone = settings?.phone || '+91 81550 50343';
 
   useEffect(() => {
     fetchProperties();
@@ -19,8 +21,12 @@ export default function Home({ settings }) {
 
   const fetchProperties = async () => {
     try {
-      const res = await fetch('/api/properties');
-      const data = await res.json();
+      const { data, error } = await supabase
+        .from('properties')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
       setProperties(data || []);
     } catch (err) {
       console.error('Failed to fetch properties:', err);
@@ -155,7 +161,6 @@ export default function Home({ settings }) {
         </div>
       </section>
 
-
       {/* FEATURED PROPERTIES SECTION */}
       <section className="py-20 bg-slate-900/50 border-y border-slate-800 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -194,7 +199,6 @@ export default function Home({ settings }) {
 
         </div>
       </section>
-
 
       {/* WHY CHOOSE PABARI'S REAL ESTATE */}
       <section className="py-20 relative">
@@ -248,7 +252,7 @@ export default function Home({ settings }) {
                 </button>
 
                 <a
-                  href={`tel:${settings?.phone}`}
+                  href={`tel:${displayPhone}`}
                   className="flex items-center space-x-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs px-5 py-3.5 rounded-xl border border-slate-700 transition-colors"
                 >
                   <PhoneCall className="w-4 h-4 text-amber-400" />
@@ -285,7 +289,6 @@ export default function Home({ settings }) {
           </div>
         </div>
       </section>
-
 
       {/* CALL TO ACTION BANNER */}
       <section className="py-16 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Filter, Building2, MapPin, SlidersHorizontal, RefreshCw } from 'lucide-react';
+import supabase from '../lib/supabase';
 import PropertyCard from '../components/PropertyCard';
 
 export default function Properties({ settings }) {
@@ -20,8 +21,12 @@ export default function Properties({ settings }) {
 
   const fetchProperties = async () => {
     try {
-      const res = await fetch('/api/properties');
-      const data = await res.json();
+      const { data, error } = await supabase
+        .from('properties')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
       setProperties(data || []);
     } catch (err) {
       console.error('Fetch properties error:', err);
@@ -36,9 +41,9 @@ export default function Properties({ settings }) {
     if (listingFilter !== 'All' && p.listing_type.toLowerCase() !== listingFilter.toLowerCase()) return false;
     if (query.trim()) {
       const q = query.toLowerCase();
-      const matchTitle = p.title.toLowerCase().includes(q);
-      const matchLoc = p.location.toLowerCase().includes(q);
-      const matchDesc = p.description.toLowerCase().includes(q);
+      const matchTitle = p.title?.toLowerCase().includes(q);
+      const matchLoc = p.location?.toLowerCase().includes(q);
+      const matchDesc = p.description?.toLowerCase().includes(q);
       if (!matchTitle && !matchLoc && !matchDesc) return false;
     }
     return true;

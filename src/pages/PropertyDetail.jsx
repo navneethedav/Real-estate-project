@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { MapPin, Bed, Bath, Maximize, MessageSquare, Phone, ArrowLeft, Check, ShieldCheck, Share2, Tag, Building2 } from 'lucide-react';
+import supabase from '../lib/supabase';
 import { openWhatsApp, buildPropertyInquiryMessage } from '../lib/whatsapp';
 import InquiryModal from '../components/InquiryModal';
 
@@ -19,8 +20,13 @@ export default function PropertyDetail({ settings }) {
 
   const fetchProperty = async () => {
     try {
-      const res = await fetch(`/api/properties?id=${id}`);
-      const data = await res.json();
+      const { data, error } = await supabase
+        .from('properties')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) throw error;
       setProperty(data);
     } catch (err) {
       console.error('Error fetching property detail:', err);

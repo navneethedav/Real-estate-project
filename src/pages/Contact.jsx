@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MapPin, Phone, Mail, Clock, MessageSquare, Send, Building2, CheckCircle2 } from 'lucide-react';
+import supabase from '../lib/supabase';
 import { openWhatsApp } from '../lib/whatsapp';
 
 export default function Contact({ settings }) {
@@ -18,17 +19,20 @@ export default function Contact({ settings }) {
     setSubmitting(true);
 
     try {
-      // 1. Store in backend inquiries table
-      await fetch('/api/inquiries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      // 1. Store directly in Supabase inquiries table
+      const formattedMessage = subject ? `[Subject: ${subject}] ${message}` : message;
+      const { error } = await supabase.from('inquiries').insert([
+        {
           client_name: name,
           client_phone: phone,
           client_email: email,
-          message: `[Subject: ${subject}] ${message}`,
-        }),
-      });
+          message: formattedMessage,
+        },
+      ]);
+
+      if (error) {
+        console.error('Supabase inquiry insert error:', error);
+      }
 
       setSubmitted(true);
 
@@ -109,7 +113,7 @@ export default function Contact({ settings }) {
               <div>
                 <h4 className="text-sm font-bold text-white font-serif">Phone & Email</h4>
                 <p className="text-xs text-slate-400 mt-1">
-                  Phone: {settings?.phone || '+91 98765 43210'}<br />
+                  Phone: {settings?.phone || '+91 81550 50343'}<br />
                   Email: {settings?.email || 'pabari.realestate@gmail.com'}
                 </p>
               </div>

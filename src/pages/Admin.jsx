@@ -30,44 +30,58 @@ export default function Admin({ settings, onSettingsUpdated }) {
 
   // Form State for Settings
   const [settingsForm, setSettingsForm] = useState({
-    whatsapp_number: settings?.whatsapp_number || '918155050343',
-    phone: settings?.phone || '+91 81550 50343',
-    email: settings?.email || 'pabari.realestate@gmail.com',
-    address: settings?.address || 'Near Bharat Bakery, Jamnagar Road, Kadiawad, Grain Market, Jamnagar - 361001, Gujarat',
-    business_hours: settings?.business_hours || 'Mon - Sat: 9:30 AM - 8:30 PM',
+    whatsapp_number: '918155050343',
+    phone: '+91 81550 50343',
+    email: 'pabari.realestate@gmail.com',
+    address: 'Near Bharat Bakery, Jamnagar Road, Kadiawad, Grain Market, Jamnagar - 361001, Gujarat',
+    business_hours: 'Mon - Sat: 9:30 AM - 8:30 PM (Sunday Closed)',
   });
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
+  const [settingsError, setSettingsError] = useState('');
+
+  // Fetch settings directly from Supabase
+  const loadSettingsFromSupabase = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('business_settings')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Supabase settings fetch error:', error);
+        return;
+      }
+
+      if (data) {
+        setSettingsForm({
+          whatsapp_number: data.whatsapp_number || '',
+          phone: data.phone || '',
+          email: data.email || '',
+          address: data.address || '',
+          business_hours: data.business_hours || '',
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load settings:', err);
+    }
+  };
 
   useEffect(() => {
     fetchData();
+    loadSettingsFromSupabase();
   }, []);
-
-  // Synchronize form values whenever settings are loaded from the database
-  useEffect(() => {
-    if (settings) {
-      setSettingsForm({
-        whatsapp_number: settings.whatsapp_number || '',
-        phone: settings.phone || '',
-        email: settings.email || '',
-        address: settings.address || '',
-        business_hours: settings.business_hours || '',
-      });
-    }
-  }, [settings]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [resProp, resInq] = await Promise.all([
-        fetch('/api/properties'),
-        fetch('/api/inquiries'),
-      ]);
-      const dataProp = await resProp.json();
-      const dataInq = await resInq.json();
+      // Fetch properties directly from Supabase
+      const { data: propData } = await supabase.from('properties').select('*');
+      const { data: inqData } = await supabase.from('inquiries').select('*');
 
-      setProperties(dataProp || []);
-      setInquiries(dataInq || []);
+      if (propData) setProperties(propData);
+      if (inqData) setInquiries(inqData);
     } catch (err) {
       console.error('Error fetching admin data:', err);
     } finally {
@@ -83,21 +97,15 @@ export default function Admin({ settings, onSettingsUpdated }) {
   const handlePropertySubmit = async (e) => {
     e.preventDefault();
     try {
-      const method = editingId ? 'PUT' : 'POST';
-      const body = editingId ? { ...formData, id: editingId } : formData;
-
-      const res = await fetch('/api/properties', {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      if (res.ok) {
-        setIsFormOpen(false);
-        setEditingId(null);
-        resetPropertyForm();
-        fetchData();
+      if (editingId) {
+        await supabase.from('properties').update(formData).eq('id', editingId);
+      } else {
+        await supabase.from('properties').insert([formData]);
       }
+      setIsFormOpen(false);
+      setEditingId(null);
+      resetPropertyForm();
+      fetchData();
     } catch (err) {
       console.error('Save property error:', err);
     }
@@ -142,34 +150,50 @@ export default function Admin({ settings, onSettingsUpdated }) {
   const handleDeleteProperty = async (id) => {
     if (!window.confirm('Are you sure you want to delete this property listing?')) return;
     try {
-      const res = await fetch('/api/properties', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
-      });
-      if (res.ok) fetchData();
+      await supabase.from('properties').delete().eq('id', id);
+      fetchData();
     } catch (err) {
       console.error('Delete property error:', err);
     }
   };
 
-  // Handle Settings Save
+  // Handle Settings Save directly to Supabase
   const handleSettingsSubmit = async (e) => {
     e.preventDefault();
     setSettingsSaving(true);
+    setSettingsError('');
+
     try {
-      const res = await fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settingsForm),
-      });
-      if (res.ok) {
-        setSettingsSuccess(true);
-        if (onSettingsUpdated) onSettingsUpdated();
-        setTimeout(() => setSettingsSuccess(false), 3000);
+      const { data: existing, error: fetchErr } = await supabase
+        .from('business_settings')
+        .select('id')
+        .limit(1);
+
+      if (fetchErr) throw fetchErr;
+
+      let saveError = null;
+
+      if (existing && existing.length > 0) {
+        const { error } = await supabase
+          .from('business_settings')
+          .update(settingsForm)
+          .eq('id', existing[0].id);
+        saveError = error;
+      } else {
+        const { error } = await supabase
+          .from('business_settings')
+          .insert([settingsForm]);
+        saveError = error;
       }
+
+      if (saveError) throw saveError;
+
+      setSettingsSuccess(true);
+      if (onSettingsUpdated) onSettingsUpdated();
+      setTimeout(() => setSettingsSuccess(false), 3000);
     } catch (err) {
       console.error('Save settings error:', err);
+      setSettingsError(err.message || 'Error updating settings');
     } finally {
       setSettingsSaving(false);
     }
@@ -363,7 +387,13 @@ export default function Admin({ settings, onSettingsUpdated }) {
 
             {settingsSuccess && (
               <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs p-3 rounded-xl">
-                Settings saved successfully! WhatsApp integration updated across website.
+                Settings saved successfully! Contact details updated across website.
+              </div>
+            )}
+
+            {settingsError && (
+              <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-xl">
+                {settingsError}
               </div>
             )}
 
